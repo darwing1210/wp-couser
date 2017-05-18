@@ -85,7 +85,6 @@ class Wp_couser {
 	 * - Wp_couser_Loader. Orchestrates the hooks of the plugin.
 	 * - Wp_couser_i18n. Defines internationalization functionality.
 	 * - Wp_couser_Admin. Defines all hooks for the admin area.
-	 * - Wp_couser_Public. Defines all hooks for the public side of the site.
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
@@ -146,6 +145,9 @@ class Wp_couser {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+		$this->loader->add_action( 'init', $plugin_admin, 'register_c_user_group' );
+		$this->loader->add_action( 'add_meta_boxes', $plugin_admin, 'add_user_group_admin_metabox' );
+		$this->loader->add_action( 'save_post_c_user_group', $plugin_admin, 'save_user_group_callback', 10, 3);
 
 	}
 
