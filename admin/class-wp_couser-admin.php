@@ -301,7 +301,7 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 
-	function save_c_user_group( $user_id ) {
+	public function save_c_user_group( $user_id ) {
 		$key = $this->user_group_meta_key;
 
 		if ( isset( $_POST[$key] ) ) {
@@ -310,6 +310,36 @@ class Wp_couser_Admin {
    		else {
    			delete_post_meta( $post_id, $key );
    		}
+	}
+
+	/**
+	 * Adds an extra column to users table in users.php
+	 *
+	 * @since     1.0.0
+	 */
+
+	public function add_c_user_group_column( $columns ) {
+	    $columns['c_user_group'] = 'User Group';
+	    return $columns;
+	}
+
+	/**
+	 * Gets user group meta and show the value in the user group column
+	 *
+	 * @since     1.0.0
+	 */
+
+	public function show_c_user_group_column_content( $value, $column_name, $user_id ) {
+	    $key = $this->user_group_meta_key;
+		$current_user_group = get_user_meta( $user_id, $key, true);
+		
+		if ( isset( $current_user_group ) ) {
+			$group = get_post( $current_user_group );
+		}
+
+		if ( 'c_user_group' == $column_name && isset( $group ) )
+			return $group->post_title;
+	    return $value;
 	}
 
 }

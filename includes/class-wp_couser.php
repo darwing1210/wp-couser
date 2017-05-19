@@ -162,6 +162,9 @@ class Wp_couser {
 		$this->loader->add_action( 'user_register', $plugin_admin, 'save_c_user_group', 10, 1 );
 		$this->loader->add_action( 'profile_update', $plugin_admin, 'save_c_user_group', 10, 1 );
 
+		$this->loader->add_filter( 'manage_users_columns', $plugin_admin, 'add_c_user_group_column', 10, 1 );
+		$this->loader->add_action( 'manage_users_custom_column', $plugin_admin, 'show_c_user_group_column_content', 10, 3 );
+
 	}
 
 	/**
