@@ -111,6 +111,11 @@ class Wp_couser {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-wp_couser-admin.php';
 
+		/**
+		 * The class responsible for handle all Groups table list functions.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-wp_couser-users-group-table.php';
+
 		$this->loader = new Wp_couser_Loader();
 
 	}
