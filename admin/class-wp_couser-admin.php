@@ -41,6 +41,24 @@ class Wp_couser_Admin {
 	private $version;
 
 	/**
+	 * The meta admin_key.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 * @var      string    $group_admins_meta_key 	The meta key for groups admin.
+	 */
+	private $group_admins_meta_key = 'c_user_group_admin';
+
+	/**
+	 * The meta user group key.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 * @var      string    $user_group_meta_key 	The meta key for user group.
+	 */
+	private $user_group_meta_key = 'c_user_group';
+
+	/**
 	 * Initialize the class and set its properties.
 	 *
 	 * @since    1.0.0
@@ -52,6 +70,20 @@ class Wp_couser_Admin {
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
 
+	}
+
+	/**
+	 * Register Post Type: User groups.
+	 *
+	 * @since    1.0.0
+	 * @return   array of groups.
+	 */
+	public function get_c_user_groups() {
+		$args = array(
+		    'post_type'=> 'c_user_group',
+		    'order'    => 'ASC'
+		);
+		return get_posts( $args );
 	}
 
 	/**
@@ -106,7 +138,7 @@ class Wp_couser_Admin {
 	 *
 	 * @since    1.0.0
 	 */
-	function register_c_user_group() {
+	public function register_c_user_group_cpt() {
 
 		$labels = array(
 			"name" => __( 'User groups', '' ),
@@ -148,7 +180,7 @@ class Wp_couser_Admin {
 		add_meta_box( 
 			'c_user_group_admin_metabox', 
 			'Administrators', 
-			array($this,'render_user_group_admins'),
+			array($this,'render_user_group_admins_field'),
 			'c_user_group', 
 			'side', 
 			'high' 
@@ -162,27 +194,28 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 
-	public function render_user_group_admins( $post ) {
+	public function render_user_group_admins_field( $post ) {
 		
 		$role = 'administrator';
-		$key = 'c_user_group';
+		$key = $this->group_admins_meta_key;
  
+ 		wp_nonce_field( 'add_user_group_admin_metabox', 'user_group_admin_metabox_nonce' );
 		$dropdown_users_args = array(
 		    'role' => $role,
 		);
 		$users = get_users( $dropdown_users_args );
 		
-		$output = sprintf('<select multiple name="%1$s[]" id="%1$s" class="chosen">', $key);
+		$output = sprintf( '<select multiple name="%1$s[]" id="%1$s" class="chosen">', $key );
 		 
 		$current_group_admins = get_post_meta( $post->ID, $key );
 
 		foreach ( $users as $user ) {
 			$_selected = '';
 			
-			if (in_array($user->ID, $current_group_admins)) {
+			if ( in_array( $user->ID, $current_group_admins ) ) {
 				$_selected = 'selected';
 			}
-			$output .= sprintf('<option value="%1$s" %2$s>%3$s</option>', $user->ID, $_selected, $user->user_login);
+			$output .= sprintf( '<option value="%1$s" %2$s>%3$s</option>', $user->ID, $_selected, $user->user_login );
 		}
 
 		$output .= '</select>';
@@ -199,15 +232,84 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 
-	public function save_user_group_callback( $post_id, $post, $update ) {
-		error_log($_POST);
-		if( isset( $_POST['c_user_group'] ) ) {
-			delete_post_meta( $post_id, 'c_user_group' ); // Cleaning before save
-	        foreach ($_POST['c_user_group'] as $selected_user) {
-		        add_post_meta( $post_id, 'c_user_group', $selected_user );
+	public function save_user_group_admins_callback( $post_id, $post, $update ) {
+		$key = $this->group_admins_meta_key;
+		// Verifying nonce
+		if ( ! isset( $_POST['user_group_admin_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['user_group_admin_metabox_nonce'], 'add_user_group_admin_metabox' ) ) {
+	        return;
+	    }
+
+		if( isset( $_POST[$key] ) ) {
+			delete_post_meta( $post_id, $key ); // Cleaning before save
+	        foreach ($_POST[$key] as $selected_user) {
+		        add_post_meta( $post_id, $key, $selected_user );
 	        }
 	    } else {
-	        delete_post_meta( $post_id, 'c_user_group' );
+	        delete_post_meta( $post_id, $key );
 	    }
 	}
+
+	/**
+	 * Renders user group field to users create and update
+	 *
+	 * @since     1.0.0
+	 */
+
+	public function add_user_group_field( $user ) { 
+	
+		$key = $this->user_group_meta_key;
+
+	?>
+		<hr>
+		<h2>User group</h2>
+		<table class="form-table">
+	   	<tr>
+	   		<th><label for="user-group">User group</label></th>
+	   		<td>
+	   			<select id="<?php echo $key ?>" name="<?php echo $key ?>">
+	   			<?php 
+
+	   			$groups = $this->get_c_user_groups();
+
+	   			if ( isset( $user->ID ) ) {
+		   			$current_user_group = get_user_meta( $user->ID, $key );
+		   		}
+
+	   			echo '<option value>User group</option>';
+			
+				foreach ($groups as $group) {
+		   			$_selected = '';
+					
+					if ( isset( $current_user_group ) ) {
+						if ( in_array( $group->ID, $current_user_group ) ) {
+							$_selected = 'selected';
+						}
+					}
+
+					printf( '<option value="%1$s" %2$s>%3$s</option>', $group->ID, $_selected, $group->post_title );
+				} ?>
+	   			</select>
+	   		</td>
+	   	</tr>
+	    </table>
+	    <hr>
+	<?php }
+
+	/**
+	 * Stores user group data in user meta
+	 *
+	 * @since     1.0.0
+	 */
+
+	function save_c_user_group( $user_id ) {
+		$key = $this->user_group_meta_key;
+
+		if ( isset( $_POST[$key] ) ) {
+	   		update_user_meta( $user_id, $key, $_POST[$key] );
+   		}
+   		else {
+   			delete_post_meta( $post_id, $key );
+   		}
+	}
+
 }

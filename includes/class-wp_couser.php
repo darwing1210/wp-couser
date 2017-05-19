@@ -142,12 +142,25 @@ class Wp_couser {
 	private function define_admin_hooks() {
 
 		$plugin_admin = new Wp_couser_Admin( $this->get_plugin_name(), $this->get_version() );
-
+		
+		// Styles
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-		$this->loader->add_action( 'init', $plugin_admin, 'register_c_user_group' );
+		
+		// Post Type
+		$this->loader->add_action( 'init', $plugin_admin, 'register_c_user_group_cpt' );
+		
+		// Metabox
 		$this->loader->add_action( 'add_meta_boxes', $plugin_admin, 'add_user_group_admin_metabox' );
-		$this->loader->add_action( 'save_post_c_user_group', $plugin_admin, 'save_user_group_callback', 10, 3);
+		$this->loader->add_action( 'save_post_c_user_group', $plugin_admin, 'save_user_group_admins_callback', 10, 3);
+
+		// User profile
+		$this->loader->add_action( 'user_new_form', $plugin_admin, 'add_user_group_field', 10, 1 );
+		$this->loader->add_action( 'show_user_profile', $plugin_admin, 'add_user_group_field', 10, 1 );
+		$this->loader->add_action( 'edit_user_profile', $plugin_admin, 'add_user_group_field', 10, 1 );
+
+		$this->loader->add_action( 'user_register', $plugin_admin, 'save_c_user_group', 10, 1 );
+		$this->loader->add_action( 'profile_update', $plugin_admin, 'save_c_user_group', 10, 1 );
 
 	}
 
