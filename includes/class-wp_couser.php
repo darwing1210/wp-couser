@@ -160,6 +160,9 @@ class Wp_couser {
 		$this->loader->add_action( 'save_post_c_user_group', $plugin_admin, 'save_user_group_admins_callback', 10, 3);
 
 		// User profile
+		$this->loader->add_filter( 'woocommerce_disable_admin_bar', $plugin_admin, 'allow_c_user_group_admin_wp_admin_access', 10, 1);
+		$this->loader->add_filter( 'woocommerce_prevent_admin_access', $plugin_admin, 'allow_c_user_group_admin_wp_admin_access', 10, 1);
+		
 		$this->loader->add_action( 'user_new_form', $plugin_admin, 'add_user_group_field', 10, 1 );
 		$this->loader->add_action( 'show_user_profile', $plugin_admin, 'add_user_group_field', 10, 1 );
 		$this->loader->add_action( 'edit_user_profile', $plugin_admin, 'add_user_group_field', 10, 1 );
@@ -169,6 +172,7 @@ class Wp_couser {
 
 		$this->loader->add_filter( 'manage_users_columns', $plugin_admin, 'add_c_user_group_column', 10, 1 );
 		$this->loader->add_action( 'manage_users_custom_column', $plugin_admin, 'show_c_user_group_column_content', 10, 3 );
+		$this->loader->add_filter( 'editable_roles', $plugin_admin, 'c_user_filter_roles', 10, 1 );
 
 	}
 

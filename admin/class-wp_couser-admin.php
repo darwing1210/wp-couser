@@ -41,6 +41,15 @@ class Wp_couser_Admin {
 	private $version;
 
 	/**
+	 * The group admin role slug.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 * @var      string    $group_admin_role_slug 	The user groups admin role.
+	 */
+	private $group_admin_role_slug = 'c_user_group_admin_role';
+
+	/**
 	 * The meta admin_key.
 	 *
 	 * @since    1.0.0
@@ -84,6 +93,20 @@ class Wp_couser_Admin {
 		    'order'    => 'ASC'
 		);
 		return get_posts( $args );
+	}
+
+	/**
+	 * Helper that removes role from user only if you are admin
+	 * @param  int $user_id
+	 *         string $role. 
+	 *
+	 * @since     1.0.0
+	 */
+	public function remove_user_from_role( $user_id, $role ) {
+		if ( current_user_can( 'administrator' ) ) {
+			$user = new WP_User( $user_id );
+        	$user->remove_role( $role );
+		}
 	}
 
 	/**
@@ -131,6 +154,24 @@ class Wp_couser_Admin {
 		wp_enqueue_script( 'chosen', plugin_dir_url( __FILE__ ) . 'vendor/chosen/chosen.jquery.min.js', array( 'jquery' ), $this->version, false );
 		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp_couser-admin.js', array( 'chosen', 'jquery' ), $this->version, false );
 
+	}
+
+	/**
+	 * Allow the "c_user_group_admin" role access to the WordPress Admin and bar
+	 * 
+	 * @param  boolean $prevent_access
+	 *         Woocommerce parameter. 
+	 *         -true:  doesn't have access
+	 *         -false: have access
+	 *         
+	 * @return boolean
+	 *         If woocommerce prevent the access to the admin bar.
+	 */
+	public function allow_c_user_group_admin_wp_admin_access( $prevent_access )
+	{
+		if( ! current_user_can( $this->group_admins_meta_key ) )
+			return $prevent_access;
+		return false;
 	}
 
 	/**
@@ -196,16 +237,18 @@ class Wp_couser_Admin {
 
 	public function render_user_group_admins_field( $post ) {
 		
-		$role = 'administrator';
 		$key = $this->group_admins_meta_key;
  
  		wp_nonce_field( 'add_user_group_admin_metabox', 'user_group_admin_metabox_nonce' );
 		$dropdown_users_args = array(
-		    'role' => $role,
-		);
+		    'meta_key'     => $this->user_group_meta_key,
+            'meta_value'   => $post->ID,
+		); // Only show users that belong to this group
 		$users = get_users( $dropdown_users_args );
 		
-		$output = sprintf( '<select multiple name="%1$s[]" id="%1$s" class="chosen">', $key );
+		$output = '<p>Only shows users that belong to this group</p>';
+
+		$output .= sprintf( '<select multiple name="%1$s[]" id="%1$s" class="chosen">', $key );
 		 
 		$current_group_admins = get_post_meta( $post->ID, $key );
 
@@ -235,17 +278,31 @@ class Wp_couser_Admin {
 	public function save_user_group_admins_callback( $post_id, $post, $update ) {
 		$key = $this->group_admins_meta_key;
 		// Verifying nonce
-		if ( ! isset( $_POST['user_group_admin_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['user_group_admin_metabox_nonce'], 'add_user_group_admin_metabox' ) ) {
+		if ( ! isset( $_POST['user_group_admin_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['user_group_admin_metabox_nonce'], 'add_user_group_admin_metabox' ) || ! current_user_can( 'administrator' ) ) {
 	        return;
 	    }
 
-		if( isset( $_POST[$key] ) ) {
-			delete_post_meta( $post_id, $key ); // Cleaning before save
-	        foreach ($_POST[$key] as $selected_user) {
-		        add_post_meta( $post_id, $key, $selected_user );
+		$previous_admins = get_post_meta( $post_id, $key, false );
+		
+		if ( isset( $_POST[$key] ) ) {
+
+			foreach ( $previous_admins as $admin_id ) {
+				if ( ! in_array( $admin_id, $_POST[$key] ) ) {
+					$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
+			        delete_post_meta( $post_id, $key, $admin_id );
+				}
+			}
+
+	        foreach ( $_POST[$key] as $selected_user_id ) {
+	        	$user = new WP_User( $selected_user_id );
+	        	$user->add_role( $this->group_admin_role_slug ); // Add user to groups admins role
+		        add_post_meta( $post_id, $key, $selected_user_id, false );
 	        }
 	    } else {
 	        delete_post_meta( $post_id, $key );
+	        foreach ( $previous_admins as $admin_id ) {
+	        	$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
+			}
 	    }
 	}
 
@@ -285,7 +342,6 @@ class Wp_couser_Admin {
 							$_selected = 'selected';
 						}
 					}
-
 					printf( '<option value="%1$s" %2$s>%3$s</option>', $group->ID, $_selected, $group->post_title );
 				} ?>
 	   			</select>
@@ -304,11 +360,19 @@ class Wp_couser_Admin {
 	public function save_c_user_group( $user_id ) {
 		$key = $this->user_group_meta_key;
 
+		// Grant user as c_user_admin_group if admin set it from add/update user
+		if ( isset( $_POST['role'] ) && isset( $_POST[$key] ) ) {
+			if ( $_POST['role'] == $this->group_admin_role_slug && current_user_can( 'administrator' ) ) {
+				add_post_meta( $_POST[$key], $this->group_admins_meta_key, $user_id, false );
+			}
+		}
+
 		if ( isset( $_POST[$key] ) ) {
 	   		update_user_meta( $user_id, $key, $_POST[$key] );
    		}
    		else {
-   			delete_post_meta( $post_id, $key );
+   			delete_user_meta( $user_id, $key );
+			$this->remove_user_from_role( $user_id, $this->group_admin_role_slug );
    		}
 	}
 
@@ -340,6 +404,24 @@ class Wp_couser_Admin {
 		if ( 'c_user_group' == $column_name && isset( $group ) )
 			return $group->post_title;
 	    return $value;
+	}
+	
+	/**
+	 * set groups admin only can create subscribers 
+	 *
+	 * @since     1.0.0
+	 */
+	function c_user_filter_roles( $roles ) {
+	    if ( current_user_can( $this->group_admins_meta_key ) ) 
+	    {
+	        $tmp = array_keys( $roles );
+	        foreach( $tmp as $r )
+	        {
+	            if( 'subscriber' == $r ) continue;
+	            unset( $roles[$r] );
+	        }
+	    }
+	    return $roles;
 	}
 
 }

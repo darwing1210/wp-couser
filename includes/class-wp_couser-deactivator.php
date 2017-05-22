@@ -30,6 +30,11 @@ class Wp_couser_Deactivator {
 	 * @since    1.0.0
 	 */
 	public static function deactivate() {
+		$admin_role_key = 'c_user_group_admin_role';
+
+		if ( get_role( $admin_role_key ) ){
+			remove_role( $admin_role_key );
+		}
 
 	}
 
