@@ -111,11 +111,6 @@ class Wp_couser {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-wp_couser-admin.php';
 
-		/**
-		 * The class responsible for handle all Groups table list functions.
-		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-wp_couser-users-group-table.php';
-
 		$this->loader = new Wp_couser_Loader();
 
 	}
@@ -173,6 +168,9 @@ class Wp_couser {
 		$this->loader->add_filter( 'manage_users_columns', $plugin_admin, 'add_c_user_group_column', 10, 1 );
 		$this->loader->add_action( 'manage_users_custom_column', $plugin_admin, 'show_c_user_group_column_content', 10, 3 );
 		$this->loader->add_filter( 'editable_roles', $plugin_admin, 'c_user_filter_roles', 10, 1 );
+		$this->loader->add_filter( 'map_meta_cap', $plugin_admin, 'c_user_map_meta_cap', 10, 4 );
+		$this->loader->add_action( 'pre_user_query', $plugin_admin, 'c_user_group_pre_user_query', 10, 1 );
+		$this->loader->add_action( 'admin_head', $plugin_admin, 'hide_user_count' );
 
 	}
 

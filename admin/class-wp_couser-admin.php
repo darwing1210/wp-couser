@@ -95,6 +95,10 @@ class Wp_couser_Admin {
 		return get_posts( $args );
 	}
 
+	public function get_user_group( $user_id ) {
+		return get_user_meta( $user_id, $this->user_group_meta_key, true);
+	}
+
 	/**
 	 * Helper that removes role from user only if you are admin
 	 * @param  int $user_id
@@ -422,6 +426,78 @@ class Wp_couser_Admin {
 	        }
 	    }
 	    return $roles;
+	}
+
+	/**
+	 * Prevent group admin edit or delete users that not belong to their group or subscriber role
+	 *
+	 * @since     1.0.0
+	 */
+	public function c_user_map_meta_cap( $caps, $cap, $user_id, $args ) {
+		$current_user_group = $this->get_user_group( get_current_user_id() );
+		switch( $cap ) {
+			case 'edit_user':
+			case 'remove_user':
+			case 'promote_user':
+				if ( isset( $args[0] ) && $args[0] == $user_id ) // If i'm editing myself
+					break; // let him pass
+				else if ( ! isset( $args[0]) )
+					$caps[] = 'do_not_allow';
+				$user = new WP_User( absint( $args[0] ) );
+				$user_group = $this->get_user_group( $user->ID );
+
+				if ( ! current_user_can( 'administrator' ) ) {
+					if ( $user->has_cap( $this->group_admin_role_slug ) || $current_user_group != $user_group ) {
+						$caps[] = 'do_not_allow';
+					}
+				}
+
+			case 'delete_user':
+			case 'delete_users':
+				if ( ! isset($args[0]) )
+					break;
+				$user = new WP_User( absint($args[0]) );
+				$user_group = $this->get_user_group( $user->ID );
+				
+				if ( ! current_user_can( 'administrator' ) ) {
+					if ( $user->has_cap( $this->group_admin_role_slug ) || $current_user_group != $user_group ) {
+						$caps[] = 'do_not_allow';
+					}
+				}
+				break;
+			default:
+			break;
+		}
+		return $caps;
+	}
+
+	/**
+	 * Only List users that belong to my group
+	 *
+	 * @since     1.0.0
+	 */
+	public function c_user_group_pre_user_query( $user_search ) {
+	    $admin_group = $this->get_user_group( get_current_user_id() );
+	    if ( current_user_can( $this->group_admin_role_slug ) ) {
+	        global $wpdb;
+	        $user_search->query_where = 
+	            str_replace('WHERE 1=1', 
+	            "WHERE 1=1 AND {$wpdb->users}.ID IN (
+	                SELECT {$wpdb->usermeta}.user_id FROM $wpdb->usermeta 
+	                WHERE {$wpdb->usermeta}.meta_key = '{$this->user_group_meta_key}'
+	                AND {$wpdb->usermeta}.meta_value = '{$admin_group}')", 
+	            $user_search->query_where
+	        );
+	    }
+	}
+
+	/**
+	 * Hide roles tab for non-admin
+	 */
+	public function hide_user_count(){
+	    if ( current_user_can( $this->group_admin_role_slug ) ) {
+			printf('<style>ul.subsubsub { display: none; }</style>');
+	    }
 	}
 
 }
