@@ -457,8 +457,8 @@ class Wp_couser_Admin {
 	 *
 	 * @since     1.0.0
 	 */
-	function c_user_filter_roles( $roles ) {
-	    if ( current_user_can( $this->group_admins_meta_key ) ) 
+	public function c_user_filter_roles( $roles ) {
+	    if ( current_user_can( $this->group_admin_role_slug ) ) 
 	    {
 	        $tmp = array_keys( $roles );
 	        foreach( $tmp as $r )
