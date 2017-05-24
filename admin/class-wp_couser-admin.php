@@ -110,6 +110,20 @@ class Wp_couser_Admin {
 	 *
 	 * @since     1.0.0
 	 */
+	public function set_user_role( $user_id, $role ) {
+		if ( current_user_can( 'administrator' ) ) {
+			$user = new WP_User( $user_id );
+        	$user->set_role( $role );
+		}
+	}
+
+	/**
+	 * Helper that removes role from user only if you are admin
+	 * @param  int $user_id
+	 *         string $role. 
+	 *
+	 * @since     1.0.0
+	 */
 	public function remove_user_from_role( $user_id, $role ) {
 		if ( current_user_can( 'administrator' ) ) {
 			$user = new WP_User( $user_id );
@@ -294,22 +308,24 @@ class Wp_couser_Admin {
 		
 		if ( isset( $_POST[$group_admins_meta_key] ) ) {
 
+			// Validating if previous users were selected if not, remove from group_admin_role
 			foreach ( $previous_admins as $admin_id ) {
 				if ( ! in_array( $admin_id, $_POST[$group_admins_meta_key] ) ) {
 					$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
+					$this->set_user_role( $admin_id, 'subscriber' );
 			        delete_post_meta( $post_id, $group_admins_meta_key, $admin_id );
 				}
 			}
 
 	        foreach ( $_POST[$group_admins_meta_key] as $selected_user_id ) {
-	        	$user = new WP_User( $selected_user_id );
-	        	$user->add_role( $this->group_admin_role_slug ); // Add user to groups admins role
+	        	$this->set_user_role( $selected_user_id, $this->group_admin_role_slug );
 		        add_post_meta( $post_id, $group_admins_meta_key, $selected_user_id, false );
 	        }
 	    } else {
 	        delete_post_meta( $post_id, $group_admins_meta_key );
 	        foreach ( $previous_admins as $admin_id ) {
 	        	$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
+	        	$this->set_user_role( $admin_id, 'subscriber' );
 			}
 	    }
 	}
