@@ -111,7 +111,7 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 	public function set_user_role( $user_id, $role ) {
-		if ( current_user_can( 'administrator' ) ) {
+		if ( current_user_can( 'promote_users' ) ) {
 			$user = new WP_User( $user_id );
         	$user->set_role( $role );
 		}
@@ -393,8 +393,11 @@ class Wp_couser_Admin {
 		// Grant user as c_user_admin_group if admin set it from add/update user
 		if ( isset( $_POST['role'] ) && isset( $_POST[$user_group_meta_key] ) ) {
 			if ( $_POST['role'] == $this->group_admin_role_slug ) {
-				if ( current_user_can( 'administrator' ) ) { // only admin can do it
-					update_post_meta( $_POST[$user_group_meta_key], $this->group_admins_meta_key, $user_id );
+				if ( current_user_can( 'administrator' ) ) { // only admin can update groups admins
+					$group_admins = get_post_meta( $_POST[$user_group_meta_key], $this->group_admins_meta_key, false );
+					if ( ! in_array( $user_id, $group_admins ) ) {
+						add_post_meta( $_POST[$user_group_meta_key], $this->group_admins_meta_key, $user_id );
+					}
 				}
 			}
 			else { // If change role, remove user from current group admins
@@ -405,6 +408,13 @@ class Wp_couser_Admin {
 						$user_id
 					);
 				}
+			}
+		}
+		
+		// Validate if user added group admin without group
+		if ( isset( $_POST['role'] ) && empty( $_POST[$user_group_meta_key] ) ) {
+			if ( $_POST['role'] == $this->group_admin_role_slug ) { // Prevent add a group admin without group
+				$this->set_user_role( $user_id, 'subscriber' );
 			}
 		}
 		
@@ -493,6 +503,7 @@ class Wp_couser_Admin {
 						$caps[] = 'do_not_allow';
 					}
 				}
+				break;
 			case 'delete_user':
 			case 'delete_users':
 				if ( ! isset($args[0]) )
