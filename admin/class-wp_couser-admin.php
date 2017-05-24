@@ -95,8 +95,12 @@ class Wp_couser_Admin {
 		return get_posts( $args );
 	}
 
-	public function get_user_group( $user_id ) {
+	public function get_user_group_id( $user_id ) {
 		return get_user_meta( $user_id, $this->user_group_meta_key, true);
+	}
+
+	public function get_user_group( $user_id ) {
+		return get_post( $this->get_user_group_id( $user_id ) );
 	}
 
 	/**
@@ -173,7 +177,7 @@ class Wp_couser_Admin {
 	 */
 	public function allow_c_user_group_admin_wp_admin_access( $prevent_access )
 	{
-		if( ! current_user_can( $this->group_admins_meta_key ) )
+		if( ! current_user_can( $this->group_admin_role_slug ) )
 			return $prevent_access;
 		return false;
 	}
@@ -241,7 +245,7 @@ class Wp_couser_Admin {
 
 	public function render_user_group_admins_field( $post ) {
 		
-		$key = $this->group_admins_meta_key;
+		$group_admins_meta_key = $this->group_admins_meta_key;
  
  		wp_nonce_field( 'add_user_group_admin_metabox', 'user_group_admin_metabox_nonce' );
 		$dropdown_users_args = array(
@@ -252,9 +256,9 @@ class Wp_couser_Admin {
 		
 		$output = '<p>Only shows users that belong to this group</p>';
 
-		$output .= sprintf( '<select multiple name="%1$s[]" id="%1$s" class="chosen">', $key );
+		$output .= sprintf( '<select multiple name="%1$s[]" id="%1$s" class="chosen">', $group_admins_meta_key );
 		 
-		$current_group_admins = get_post_meta( $post->ID, $key );
+		$current_group_admins = get_post_meta( $post->ID, $group_admins_meta_key );
 
 		foreach ( $users as $user ) {
 			$_selected = '';
@@ -280,30 +284,30 @@ class Wp_couser_Admin {
 	 */
 
 	public function save_user_group_admins_callback( $post_id, $post, $update ) {
-		$key = $this->group_admins_meta_key;
+		$group_admins_meta_key = $this->group_admins_meta_key;
 		// Verifying nonce
 		if ( ! isset( $_POST['user_group_admin_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['user_group_admin_metabox_nonce'], 'add_user_group_admin_metabox' ) || ! current_user_can( 'administrator' ) ) {
 	        return;
 	    }
 
-		$previous_admins = get_post_meta( $post_id, $key, false );
+		$previous_admins = get_post_meta( $post_id, $group_admins_meta_key, false );
 		
-		if ( isset( $_POST[$key] ) ) {
+		if ( isset( $_POST[$group_admins_meta_key] ) ) {
 
 			foreach ( $previous_admins as $admin_id ) {
-				if ( ! in_array( $admin_id, $_POST[$key] ) ) {
+				if ( ! in_array( $admin_id, $_POST[$group_admins_meta_key] ) ) {
 					$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
-			        delete_post_meta( $post_id, $key, $admin_id );
+			        delete_post_meta( $post_id, $group_admins_meta_key, $admin_id );
 				}
 			}
 
-	        foreach ( $_POST[$key] as $selected_user_id ) {
+	        foreach ( $_POST[$group_admins_meta_key] as $selected_user_id ) {
 	        	$user = new WP_User( $selected_user_id );
 	        	$user->add_role( $this->group_admin_role_slug ); // Add user to groups admins role
-		        add_post_meta( $post_id, $key, $selected_user_id, false );
+		        add_post_meta( $post_id, $group_admins_meta_key, $selected_user_id, false );
 	        }
 	    } else {
-	        delete_post_meta( $post_id, $key );
+	        delete_post_meta( $post_id, $group_admins_meta_key );
 	        foreach ( $previous_admins as $admin_id ) {
 	        	$this->remove_user_from_role( $admin_id, $this->group_admin_role_slug );
 			}
@@ -318,7 +322,7 @@ class Wp_couser_Admin {
 
 	public function add_user_group_field( $user ) { 
 	
-		$key = $this->user_group_meta_key;
+		$user_group_meta_key = $this->user_group_meta_key;
 
 	?>
 		<hr>
@@ -327,28 +331,34 @@ class Wp_couser_Admin {
 	   	<tr>
 	   		<th><label for="user-group">User group</label></th>
 	   		<td>
-	   			<select id="<?php echo $key ?>" name="<?php echo $key ?>">
-	   			<?php 
 
-	   			$groups = $this->get_c_user_groups();
+	   			<?php
 
-	   			if ( isset( $user->ID ) ) {
-		   			$current_user_group = get_user_meta( $user->ID, $key );
-		   		}
+	   			if ( current_user_can( $this->group_admin_role_slug ) ) {
+	   				$current_user_group = $this->get_user_group( get_current_user_id() );
+	   				printf( '<select id="%1$s" name="%1$s" disabled="disabled">', $user_group_meta_key );
+	   				printf( '<option value="%1$s" selected>%2$s</option>', $current_user_group->ID, $current_user_group->post_title );
+	   			}
+	   			else {
+	   				printf( '<select id="%1$s" name="%1$s">', $user_group_meta_key );
+	   				echo '<option value>User group</option>'; // Empty Option
+		   			if ( isset( $user->ID ) ) {
+			   			$user_group = get_user_meta( $user->ID, $user_group_meta_key );
+			   		}
+			   		$groups = $this->get_c_user_groups();
 
-	   			echo '<option value>User group</option>';
-			
-				foreach ($groups as $group) {
-		   			$_selected = '';
-					
-					if ( isset( $current_user_group ) ) {
-						if ( in_array( $group->ID, $current_user_group ) ) {
-							$_selected = 'selected';
+					foreach ($groups as $group) {
+			   			$_selected = '';	
+						if ( isset( $user_group ) ) {
+							if ( in_array( $group->ID, $user_group ) ) {
+								$_selected = 'selected';
+							}
 						}
+						printf( '<option value="%1$s" %2$s>%3$s</option>', $group->ID, $_selected, $group->post_title );
 					}
-					printf( '<option value="%1$s" %2$s>%3$s</option>', $group->ID, $_selected, $group->post_title );
-				} ?>
-	   			</select>
+				} 
+				echo "</select>";
+				?>
 	   		</td>
 	   	</tr>
 	    </table>
@@ -362,21 +372,37 @@ class Wp_couser_Admin {
 	 */
 
 	public function save_c_user_group( $user_id ) {
-		$key = $this->user_group_meta_key;
+		$user_group_meta_key = $this->user_group_meta_key;
 
 		// Grant user as c_user_admin_group if admin set it from add/update user
-		if ( isset( $_POST['role'] ) && isset( $_POST[$key] ) ) {
-			if ( $_POST['role'] == $this->group_admin_role_slug && current_user_can( 'administrator' ) ) {
-				add_post_meta( $_POST[$key], $this->group_admins_meta_key, $user_id, false );
+		if ( isset( $_POST['role'] ) && isset( $_POST[$user_group_meta_key] ) ) {
+			if ( $_POST['role'] == $this->group_admin_role_slug ) {
+				if ( current_user_can( 'administrator' ) ) { // only admin can do it
+					update_post_meta( $_POST[$user_group_meta_key], $this->group_admins_meta_key, $user_id );
+				}
+			}
+			else { // If change role, remove user from current group admins
+				if ( $this->get_user_group_id( $user_id ) ) {
+					delete_post_meta(  
+						$this->get_user_group_id( $user_id ), 
+						$this->$group_admins_meta_key,
+						$user_id
+					);
+				}
 			}
 		}
-
-		if ( isset( $_POST[$key] ) ) {
-	   		update_user_meta( $user_id, $key, $_POST[$key] );
-   		}
-   		else {
-   			delete_user_meta( $user_id, $key );
-			$this->remove_user_from_role( $user_id, $this->group_admin_role_slug );
+		
+		if ( current_user_can( 'administrator' ) ) {
+			if ( isset( $_POST[$user_group_meta_key] ) ) {
+		   		update_user_meta( $user_id, $user_group_meta_key, $_POST[$user_group_meta_key] );
+	   		}
+	   		else {
+	   			delete_user_meta( $user_id, $user_group_meta_key );
+				$this->remove_user_from_role( $user_id, $this->group_admin_role_slug );
+	   		}
+   		} 
+   		else if ( current_user_can( $this->group_admin_role_slug ) ) {
+			update_user_meta( $user_id, $user_group_meta_key, $this->get_user_group_id( get_current_user_id() ) );
    		}
 	}
 
@@ -398,8 +424,8 @@ class Wp_couser_Admin {
 	 */
 
 	public function show_c_user_group_column_content( $value, $column_name, $user_id ) {
-	    $key = $this->user_group_meta_key;
-		$current_user_group = get_user_meta( $user_id, $key, true);
+	    $user_group_meta_key = $this->user_group_meta_key;
+		$current_user_group = get_user_meta( $user_id, $user_group_meta_key, true);
 		
 		if ( isset( $current_user_group ) ) {
 			$group = get_post( $current_user_group );
@@ -434,7 +460,7 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 	public function c_user_map_meta_cap( $caps, $cap, $user_id, $args ) {
-		$current_user_group = $this->get_user_group( get_current_user_id() );
+		$current_user_group = $this->get_user_group_id( get_current_user_id() );
 		switch( $cap ) {
 			case 'edit_user':
 			case 'remove_user':
@@ -444,7 +470,7 @@ class Wp_couser_Admin {
 				else if ( ! isset( $args[0]) )
 					$caps[] = 'do_not_allow';
 				$user = new WP_User( absint( $args[0] ) );
-				$user_group = $this->get_user_group( $user->ID );
+				$user_group = $this->get_user_group_id( $user->ID );
 
 				if ( ! current_user_can( 'administrator' ) ) {
 					if ( $user->has_cap( $this->group_admin_role_slug ) || $current_user_group != $user_group ) {
@@ -457,7 +483,7 @@ class Wp_couser_Admin {
 				if ( ! isset($args[0]) )
 					break;
 				$user = new WP_User( absint($args[0]) );
-				$user_group = $this->get_user_group( $user->ID );
+				$user_group = $this->get_user_group_id( $user->ID );
 				
 				if ( ! current_user_can( 'administrator' ) ) {
 					if ( $user->has_cap( $this->group_admin_role_slug ) || $current_user_group != $user_group ) {
@@ -477,7 +503,7 @@ class Wp_couser_Admin {
 	 * @since     1.0.0
 	 */
 	public function c_user_group_pre_user_query( $user_search ) {
-	    $admin_group = $this->get_user_group( get_current_user_id() );
+	    $admin_group = $this->get_user_group_id( get_current_user_id() );
 	    if ( current_user_can( $this->group_admin_role_slug ) ) {
 	        global $wpdb;
 	        $user_search->query_where = 
