@@ -385,7 +385,7 @@ class Wp_couser_Admin {
 				if ( $this->get_user_group_id( $user_id ) ) {
 					delete_post_meta(  
 						$this->get_user_group_id( $user_id ), 
-						$this->$group_admins_meta_key,
+						$this->group_admins_meta_key,
 						$user_id
 					);
 				}
@@ -477,7 +477,6 @@ class Wp_couser_Admin {
 						$caps[] = 'do_not_allow';
 					}
 				}
-
 			case 'delete_user':
 			case 'delete_users':
 				if ( ! isset($args[0]) )
