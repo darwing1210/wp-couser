@@ -170,6 +170,7 @@ class Wp_couser {
 		$this->loader->add_filter( 'editable_roles', $plugin_admin, 'c_user_filter_roles', 10, 1 );
 		$this->loader->add_filter( 'map_meta_cap', $plugin_admin, 'c_user_map_meta_cap', 10, 4 );
 		$this->loader->add_action( 'pre_user_query', $plugin_admin, 'c_user_group_pre_user_query', 10, 1 );
+		$this->loader->add_action( 'delete_user', $plugin_admin, 'delete_c_user_group', 10, 1 );
 		$this->loader->add_action( 'admin_head', $plugin_admin, 'hide_user_count' );
 
 	}

@@ -415,6 +415,14 @@ class Wp_couser_Admin {
 		if ( isset( $_POST['role'] ) && empty( $_POST[$user_group_meta_key] ) ) {
 			if ( $_POST['role'] == $this->group_admin_role_slug ) { // Prevent add a group admin without group
 				$this->set_user_role( $user_id, 'subscriber' );
+
+				if ( $this->get_user_group_id( $user_id ) ) { // in case user had group
+					delete_post_meta(  
+						$this->get_user_group_id( $user_id ), 
+						$this->group_admins_meta_key,
+						$user_id
+					);
+				}
 			}
 		}
 		
@@ -430,6 +438,21 @@ class Wp_couser_Admin {
    		else if ( current_user_can( $this->group_admin_role_slug ) ) {
 			update_user_meta( $user_id, $user_group_meta_key, $this->get_user_group_id( get_current_user_id() ) );
    		}
+	}
+
+	/**
+	 * Remove user from group admin when delete
+	 *
+	 * @since     1.0.0
+	 */
+	public function delete_c_user_group( $user_id ) {
+		if ( $this->get_user_group_id( $user_id ) ) {
+			delete_post_meta(  
+				$this->get_user_group_id( $user_id ), 
+				$this->group_admins_meta_key,
+				$user_id
+			);
+		}
 	}
 
 	/**
