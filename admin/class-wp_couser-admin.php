@@ -355,7 +355,7 @@ class Wp_couser_Admin {
 	   				printf( '<select id="%1$s" name="%1$s" disabled="disabled">', $user_group_meta_key );
 	   				printf( '<option value="%1$s" selected>%2$s</option>', $current_user_group->ID, $current_user_group->post_title );
 	   			}
-	   			else {
+	   			else if ( current_user_can( 'administrator' ) ) {
 	   				printf( '<select id="%1$s" name="%1$s">', $user_group_meta_key );
 	   				echo '<option value>User group</option>'; // Empty Option
 		   			if ( isset( $user->ID ) ) {
