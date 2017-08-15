@@ -173,6 +173,9 @@ class Wp_couser {
 		$this->loader->add_action( 'delete_user', $plugin_admin, 'delete_c_user_group', 10, 1 );
 		$this->loader->add_action( 'admin_head', $plugin_admin, 'hide_user_count' );
 
+		// CSV importer
+		$this->loader->add_action( 'admin_menu', $plugin_admin, 'csv_group_importer_subpage_menu' );
+
 	}
 
 	/**

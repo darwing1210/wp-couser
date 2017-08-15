@@ -575,4 +575,60 @@ class Wp_couser_Admin {
 	    }
 	}
 
+	/**
+	 * Admin menu to csv importer
+	 */
+	public function csv_group_importer_subpage_menu() {
+		add_submenu_page(
+			'users.php',
+			__( 'User groups CSV importer' , 'wp_couser' ),
+			__( 'User groups CSV importer' , 'wp_couser' ),
+			'administrator',
+			'c_user_group_importer',
+			array( $this, 'csv_group_importer_subpage_html' )
+		);
+	}
+
+	/**
+	 * Admin Top Level Menu
+	 * render functions
+	 */
+	public function csv_group_importer_subpage_html() {
+
+		// check user capabilities
+		if ( ! current_user_can( 'administrator' ) ) {
+			return;
+		}
+
+		if ( isset( $_FILES['csvfile'] ) || isset( $_POST['csv_group_importer_nonce'] ) ) {
+			if ( ! wp_verify_nonce( $_POST['csv_group_importer_nonce'], 'csv_group_importer') ) {
+				echo "<h1>send file</h1>";
+				var_dump($_FILES);
+			}
+		}
+
+		?>
+		<div class="wrap">
+            <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+            <form enctype="multipart/form-data" action="users.php?page=c_user_group_importer" method="post">
+            	<p>Please upload a csv file containing user data. </p>
+            	<p>Columns must be in the next order: username, email, usergroup, groupadmin.</p>
+            	<p>If the usergroup doesn't exist it will be created</p>
+                <table class="form-table">
+					<tbody>
+						<tr>
+							<th scope="row"><label for="csvfile">CSV file</label></th>
+							<td>
+								<?php wp_nonce_field( 'csv_group_importer', 'csv_group_importer_nonce' ); ?>
+								<input name="csvfile" type="file" id="csvfile" class="regular-text" required>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<p class="submit"><input type="submit" name="submit" id="submit" class="button button-primary" value="Submit"></p>
+            </form>
+		</div>
+		<?php
+	}
+
 }
