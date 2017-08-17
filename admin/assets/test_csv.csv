@@ -1,0 +1,7 @@
+username,email,usergroup,isgroupadmin
+john,john@mymail.com,Group 1,no
+doe,doe@email.com,Group 1,yes
+noel,noel@user.com,Group 2,no
+maria,maria@mail.com,Hospital 1,no
+illia,illia@gmail.com,Hospital 1,yes
+darwing,darwing@gmail.com,Group 2,yes

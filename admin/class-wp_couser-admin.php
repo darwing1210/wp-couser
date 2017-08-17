@@ -89,7 +89,7 @@ class Wp_couser_Admin {
 	 */
 	public function get_c_user_groups() {
 		$args = array(
-		    'post_type'=> 'c_user_group',
+		    'post_type'=> $this->user_group_meta_key,
 		    'order'    => 'ASC'
 		);
 		return get_posts( $args );
@@ -298,6 +298,8 @@ class Wp_couser_Admin {
 	 */
 
 	public function save_user_group_admins_callback( $post_id, $post, $update ) {
+	    // TODO store groups admins meta_keys as serialized array
+
 		$group_admins_meta_key = $this->group_admins_meta_key;
 		// Verifying nonce
 		if ( ! isset( $_POST['user_group_admin_metabox_nonce'] ) || ! wp_verify_nonce( $_POST['user_group_admin_metabox_nonce'], 'add_user_group_admin_metabox' ) || ! current_user_can( 'administrator' ) ) {
@@ -590,8 +592,8 @@ class Wp_couser_Admin {
 	}
 
 	/**
-	 * Admin Top Level Menu
-	 * render functions
+	 * CSV importer
+	 * also renders the importer page and the results
 	 */
 	public function csv_group_importer_subpage_html() {
 
@@ -600,10 +602,142 @@ class Wp_couser_Admin {
 			return;
 		}
 
-		if ( isset( $_FILES['csvfile'] ) || isset( $_POST['csv_group_importer_nonce'] ) ) {
-			if ( ! wp_verify_nonce( $_POST['csv_group_importer_nonce'], 'csv_group_importer') ) {
-				echo "<h1>send file</h1>";
-				var_dump($_FILES);
+		if ( isset( $_FILES[ 'csvfile' ] ) || isset( $_POST[ 'csv_group_importer_nonce' ] ) ) {
+			if ( wp_verify_nonce( $_POST[ 'csv_group_importer_nonce' ], 'csv_group_importer') ) {
+
+			    $file_valid = true;
+			    $error_message = '';
+			    $user_log_messages = '';
+			    $update_groups = true;
+
+				if ( ! ( $_FILES[ 'csvfile' ][ 'size' ] > 0 && ! $_FILES[ 'csvfile' ][ 'size' ] < wp_max_upload_size() ) ) {
+				    $file_valid = false;
+				    $error_message = 'The size of the file is too big, max size allowed: ' . size_format( wp_max_upload_size(), 2 );
+                }
+
+                if ( ! ( $_FILES[ 'csvfile' ][ 'type' ] === 'text/csv' ) ) {
+	                $file_valid = false;
+	                $error_message = 'The file you are trying to upload is not a valid CSV';
+                }
+
+                if ( $file_valid ) {
+					
+					$filename = $_FILES[ 'csvfile' ][ 'tmp_name' ];
+					$file = fopen( $filename, 'r' );
+					$row_number = 0;
+
+					$users_created = 0;
+					$users_updated = 0;
+					$users_with_errors = 0;
+
+					$columns_headers = array();
+
+					while ( ( $data = fgetcsv( $file, 10000, "," ) ) !== false ) {
+						if ( $row_number == 0 ) {
+                            $columns_headers = array_flip( $data );
+
+							if ( ! array_key_exists('username', $columns_headers) || ! array_key_exists('email', $columns_headers ) ) {
+								$error_message = 'This CSV not contain neither email or username valid columns';
+							    continue;
+                            }
+
+                            if ( ! array_key_exists('usergroup', $columns_headers) || ! array_key_exists('isgroupadmin', $columns_headers ) ) {
+	                            $update_groups = false;
+                            }
+
+                        } else if ( ! empty( $data[0] ) ) {
+
+							$username = ( isset( $data[ $columns_headers[ 'username' ] ] ) ? $data[ $columns_headers[ 'username' ] ] : null );
+							$email = ( isset( $data[ $columns_headers[ 'email' ] ] ) ? $data[ $columns_headers[ 'email' ] ] : null );
+
+							if ( $update_groups ) {
+                                $usergroup = ( isset( $data[ $columns_headers[ 'usergroup' ] ] ) ? $data[ $columns_headers[ 'usergroup' ] ] : null );
+                                $isgroupadmin = ( isset( $data[ $columns_headers[ 'isgroupadmin' ] ] ) && strtolower( $data[ $columns_headers[ 'isgroupadmin' ] ] ) === 'yes' );
+							}
+
+							if ( $username && $email ) {
+								$user_id = username_exists( $username );
+								if ( ! $user_id && email_exists( $email ) == false ) {
+									$random_password = wp_generate_password( 
+										$length = 12, 
+										$include_standard_special_chars = false 
+									);
+									$user_id = wp_create_user( $username, $random_password, $email );
+									$users_created++;
+								} else if ( $update_groups ) {
+									$users_updated++;
+								}
+								
+								// Group stuff goes here
+								if ( $user_id && ! is_wp_error( $user_id ) && $update_groups ) {
+									
+									// WP_Query arguments
+									$args = array(
+										'name'                   => sanitize_title_for_query( $usergroup ),
+										'post_type'              => $this->user_group_meta_key,
+										'posts_per_page'         => '1',
+										'orderby'                => 'id',
+									);
+
+									// The Query
+									$query = new WP_Query( $args );
+									if ( isset( $query->posts[0] ) ) {
+										$group_id = $query->posts[0]->ID;
+										update_user_meta( $user_id, $this->user_group_meta_key, $group_id );
+
+									} else {
+										$new_args = array(
+										    'post_title'    => $usergroup,
+										    'post_content'  => $usergroup . ' group created by importer',
+										    'post_status'   => 'publish',
+										    'post_author'   => 1,
+										    'post_type'     => $this->user_group_meta_key,
+										);
+										// Insert the group into the database.
+										$group_id = wp_insert_post( $new_args );
+
+										if ( ! is_wp_error( $group_id ) ) {
+											update_user_meta( $user_id, $this->user_group_meta_key, $group_id );
+										}
+									}
+
+									if ( ! is_wp_error( $group_id ) && $isgroupadmin ) { // IF is group admin
+										$this->set_user_role( $user_id, $this->group_admin_role_slug );
+										add_post_meta( $group_id, $this->group_admins_meta_key, $user_id, false );
+                                    } else if ( ! is_wp_error( $group_id ) && ! $isgroupadmin ) {
+										$this->remove_user_from_role( $user_id, $this->group_admin_role_slug );
+										$this->set_user_role( $user_id, 'subscriber' );
+										delete_post_meta( $group_id, $this->group_admins_meta_key, $user_id );
+                                    }
+
+								} else if ( is_wp_error( $user_id ) ) {
+									$users_with_errors++;
+								}
+							} else {
+								$users_with_errors++;
+                            }
+                        }
+						$row_number++;
+					}
+	                $user_log_messages = 'Users created: ' . $users_created . ' | Users updated: ' . $users_updated . ' | Users with error: ' . $users_with_errors . '<br>';
+				}
+
+				// Notices
+
+				if ( ! empty ( $user_log_messages ) ) {
+					?>
+                    <div class="notice notice-success is-dismissible">
+                        <p><?php echo $user_log_messages; ?></p>
+                    </div>
+					<?php
+				}
+				else if ( ! empty( $error_message ) ) {
+					?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><?php echo $error_message; ?></p>
+                    </div>
+					<?php
+				}
 			}
 		}
 
@@ -612,8 +746,12 @@ class Wp_couser_Admin {
             <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
             <form enctype="multipart/form-data" action="users.php?page=c_user_group_importer" method="post">
             	<p>Please upload a csv file containing user data. </p>
-            	<p>Columns must be in the next order: username, email, usergroup, groupadmin.</p>
-            	<p>If the usergroup doesn't exist it will be created</p>
+            	<p>Columns must be in the next order: username, email, usergroup, isgroupadmin.</p>
+            	<p><img src="<?php echo plugins_url( 'assets/demo_csv.png', __FILE__ ) ?>" alt="CSV demo" style="max-width: 100%"></p>
+                <p>If the usergroup doesn't exist it will be created</p>
+                <p><a target="_blank" href="<?php echo plugins_url( 'assets/test_csv.csv', __FILE__ ) ?>">Download CSV demo file</a></p>
+                
+                
                 <table class="form-table">
 					<tbody>
 						<tr>
@@ -621,6 +759,7 @@ class Wp_couser_Admin {
 							<td>
 								<?php wp_nonce_field( 'csv_group_importer', 'csv_group_importer_nonce' ); ?>
 								<input name="csvfile" type="file" id="csvfile" class="regular-text" required>
+                                <p class="description">Max file size <?php echo size_format( wp_max_upload_size(), 2 ); ?></p>
 							</td>
 						</tr>
 					</tbody>
