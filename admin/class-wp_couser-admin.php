@@ -664,12 +664,12 @@ class Wp_couser_Admin {
 									);
 									$user_id = wp_create_user( $username, $random_password, $email );
 
-									$message  = __( 'Hi there,' ) . "rnrn";
-									$message .= sprintf(__("Welcome to %s! Here's how to log in:"), get_option( 'blogname' ) ) . "rnrn";
-									$message .= wp_login_url() . "rn";
-									$message .= sprintf( __( 'Username: %s' ), $username ) . "rn";
-									$message .= sprintf( __( 'Password: %s' ), $random_password ) . "rnrn";
-									$message .= sprintf( __( 'If you have any problems, please contact us at %s.') , get_option( 'admin_email' ) ) . "rnrn";
+									$message  = __( 'Hi there,' ) . "\r\n\r\n";
+									$message .= sprintf(__("Welcome to %s! Here's how to log in:"), get_option( 'blogname' ) ) . "\r\n\r\n";
+									$message .= wp_login_url() . " \r\n\r\n";
+									$message .= sprintf( __( 'Username: %s' ), $username ) . "\r\n\r\n";
+									$message .= sprintf( __( 'Password: %s' ), $random_password ) . "\r\n\r\n";
+									$message .= sprintf( __( 'If you have any problems, please contact us at %s.') , get_option( 'admin_email' ) ) . "\r\n\r\n";
 									$message .= __( 'Thanks!' );
 
 									wp_mail( $email, sprintf( __( '[%s] Your username and password' ), get_option( 'blogname' ) ), $message );
