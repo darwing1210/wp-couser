@@ -663,6 +663,17 @@ class Wp_couser_Admin {
 										$include_standard_special_chars = false 
 									);
 									$user_id = wp_create_user( $username, $random_password, $email );
+
+									$message  = __( 'Hi there,' ) . "rnrn";
+									$message .= sprintf(__("Welcome to %s! Here's how to log in:"), get_option( 'blogname' ) ) . "rnrn";
+									$message .= wp_login_url() . "rn";
+									$message .= sprintf( __( 'Username: %s' ), $username ) . "rn";
+									$message .= sprintf( __( 'Password: %s' ), $random_password ) . "rnrn";
+									$message .= sprintf( __( 'If you have any problems, please contact us at %s.') , get_option( 'admin_email' ) ) . "rnrn";
+									$message .= __( 'Thanks!' );
+
+									wp_mail( $email, sprintf( __( '[%s] Your username and password' ), get_option( 'blogname' ) ), $message );
+
 									$users_created++;
 								} else if ( $update_groups ) {
 									$users_updated++;
