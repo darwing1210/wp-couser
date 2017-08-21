@@ -690,7 +690,7 @@ class Wp_couser_Admin {
 										'orderby'                => 'id',
 									);
 
-									// The Query
+									// If group exist
 									$query = new WP_Query( $args );
 									if ( isset( $query->posts[0] ) ) {
 										$group_id = $query->posts[0]->ID;
@@ -759,9 +759,8 @@ class Wp_couser_Admin {
             	<p>Please upload a csv file containing user data. </p>
             	<p>Columns must be in the next order: username, email, usergroup, isgroupadmin.</p>
             	<p><img src="<?php echo plugins_url( 'assets/demo_csv.png', __FILE__ ) ?>" alt="CSV demo" style="max-width: 100%"></p>
-                <p>If the usergroup doesn't exist it will be created</p>
+                <p>If the usergroup or group doesn't exist it will be created</p>
                 <p><a target="_blank" href="<?php echo plugins_url( 'assets/test_csv.csv', __FILE__ ) ?>">Download CSV demo file</a></p>
-                
                 
                 <table class="form-table">
 					<tbody>
