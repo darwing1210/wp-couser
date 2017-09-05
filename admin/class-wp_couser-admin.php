@@ -632,6 +632,9 @@ class Wp_couser_Admin {
 
 					$columns_headers = array();
 
+					$current_user = wp_get_current_user();
+					$current_user_name = ( $current_user instanceof WP_User ? $current_user->user_login : 'importer' );
+
 					while ( ( $data = fgetcsv( $file, 10000, "," ) ) !== false ) {
 						if ( $row_number == 0 ) {
                             $columns_headers = array_flip( $data );
@@ -699,7 +702,7 @@ class Wp_couser_Admin {
 									} else {
 										$new_args = array(
 										    'post_title'    => $usergroup,
-										    'post_content'  => $usergroup . ' group created by importer',
+										    'post_content'  => $usergroup . ' group created by ' . $current_user_name,
 										    'post_status'   => 'publish',
 										    'post_author'   => 1,
 										    'post_type'     => $this->user_group_meta_key,
