@@ -89,6 +89,7 @@ class Wp_couser_Admin {
 	 */
 	public function get_c_user_groups() {
 		$args = array(
+			'posts_per_page'=> -1,
 		    'post_type'=> $this->user_group_meta_key,
 		    'order'    => 'ASC'
 		);
