@@ -192,8 +192,9 @@ class Wp_couser_Admin {
 	 */
 	public function allow_c_user_group_admin_wp_admin_access( $prevent_access )
 	{
-		if( ! current_user_can( $this->group_admin_role_slug ) )
-			return $prevent_access;
+		// if( ! current_user_can( $this->group_admin_role_slug ) )
+		// 	return $prevent_access;
+		// return false;
 		return false;
 	}
 
